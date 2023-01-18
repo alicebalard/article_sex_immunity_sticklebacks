@@ -7,7 +7,7 @@ unknown chromosome
 #$ -e /data/SBCS-EizaguirreLab/Alice/SexImmunity/article_sex_immunity_sticklebacks/code/bash/run_mappability.stderr
 #$ -cwd
 #$ -V
-#$ -l h_rt=1:00:00
+#$ -l h_rt=240:00:00
 
 module load samtools/1.9
 
