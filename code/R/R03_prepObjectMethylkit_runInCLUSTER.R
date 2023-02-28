@@ -7,21 +7,16 @@
 source("R02_prepBSBOLTForMethylkit_runInCLUSTER.R")
 
 ## Load unitecov objects
-base::load("../../gitignore/frompreviousarticle/bigdata/05MethylKit/uniteCovObjects/uniteCovALL_woSexAndUnknowChr_20dec2022.RData") 
-base::load("../../gitignore/frompreviousarticle/bigdata/05MethylKit/uniteCovObjects/uniteCovALL_G1_woSexAndUnknowChr_20dec2022.RData") 
-base::load("../../gitignore/frompreviousarticle/bigdata/05MethylKit/uniteCovObjects/uniteCovALL_G2_woSexAndUnknowChr_20dec2022.RData") 
-base::load("../../gitignore/frompreviousarticle/bigdata/05MethylKit/uniteCovObjects/uniteCovHALF_G1_woSexAndUnknowChr_OVERLAPwG2_20dec2022.RData") 
-base::load("../../gitignore/frompreviousarticle/bigdata/05MethylKit/uniteCovObjects/uniteCovHALF_G2_woSexAndUnknowChr_OVERLAPwG1_20dec2022.RData")
+# base::load("../../gitignore/bigdata/05MethylKit/uniteCovObjects/uniteCovALL_woSexAndUnknowChr_20dec2022.RData") 
+# base::load("../../gitignore/bigdata/05MethylKit/uniteCovObjects/uniteCovALL_G1_woSexAndUnknowChr_20dec2022.RData") 
+# base::load("../../gitignore/bigdata/05MethylKit/uniteCovObjects/uniteCovALL_G2_woSexAndUnknowChr_20dec2022.RData") 
+# base::load("../../gitignore/bigdata/05MethylKit/uniteCovObjects/uniteCovHALF_G1_woSexAndUnknowChr_OVERLAPwG2_20dec2022.RData") 
+# base::load("../../gitignore/bigdata/05MethylKit/uniteCovObjects/uniteCovHALF_G2_woSexAndUnknowChr_OVERLAPwG1_20dec2022.RData")
 
+##################
+## To recalculate:
 rerun = FALSE
-
 if (rerun == TRUE){
-  
-  ## Sources:
-  ## https://www.bioconductor.org/packages/devel/bioc/vignettes/methylKit/inst/doc/methylKit.html
-  ## https://nbis-workshop-epigenomics.readthedocs.io/en/latest/content/tutorials/methylationSeq/Seq_Tutorial.html#load-datasets
-  ## /data/archive/archive-SBCS-EizaguirreLab/RRBS/StickPara_Broject_archive/08CompGenomes_mCextr/04RAnalyses_Methylome/methylbam_peichel...
-  
   ##### Load prepared dataset (in APOCRITA) #####
   dataPath="/data/SBCS-EizaguirreLab/Alice/StickParaBroOff/Data/04BSBolt_methCall/BSBolt/MethylationCalling/Methylation_calling_splitted/formatCG4methylKit"
   
@@ -29,22 +24,22 @@ if (rerun == TRUE){
                     pattern = ".CG4methylkit.txt",
                     full.names = T)
   
-  ## Add metadata on treatments
-  metadata <- readxl::read_xlsx("/data/SBCS-EizaguirreLab/Alice/StickParaBroOff/StickParaOffsBroject/data/raw\ data\ Joshka\ Kostas/Kostas_G2_info.xlsx")
-  
-  metadata$trtG1G2_NUM <- as.numeric(as.factor(metadata$trtG1G2))
+  ## Add metadata on sex (the grouping factor)
+  metadata <- readxl::read_xlsx("../../dataIn/raw data Joshka Kostas/Kostas_G2_info.xlsx")
+    
+  metadata$sex_NUM <- as.numeric(as.factor(metadata$Sex))
   
   ### Make methylkit object
   myobj=methylKit::methRead(as.list(temp),
                             mincov=10,
                             sample.id=as.list(metadata$ID),
                             assembly="Gynogen_pchrom_assembly_all",
-                            treatment=metadata$trtG1G2_NUM,
+                            treatment=metadata$sex_NUM,
                             context="CpG")
   
   #################################################
   ## We remove several samples from the raw dataset
-  fullMetadata <- read.csv("../../data/fullMetadata127_Alice.csv") 
+  fullMetadata <- read.csv("../../dataIn/fullMetadata127_Alice.csv") 
   
   ## create a new methylRawList object
   print("Remove unwanted samples")
@@ -52,7 +47,7 @@ if (rerun == TRUE){
   myobj=reorganize(
     myobj,
     sample.ids=metadata$ID[metadata$ID %in% fullMetadata$ID],
-    treatment=metadata$trtG1G2_NUM[metadata$ID %in% fullMetadata$ID])
+    treatment=metadata$sex_NUM[metadata$ID %in% fullMetadata$ID])
   
   ###############################
   ## Filtering and normalising ##
@@ -73,10 +68,6 @@ if (rerun == TRUE){
   #####################
   ##In order to do further analysis, we will need to get the bases covered in all samples. The following function will merge all samples to one object for base-pair locations that are covered in all samples. The unite() function will return a methylBase object which will be our main object for all comparative analysis. The methylBase object contains methylation information for regions/bases that are covered in all samples.
   
-  table(metadata$trtG1G2[metadata$ID %in% fullMetadata$ID])
-  #   Control  E_control  E_exposed    Exposed NE_control NE_exposed 
-  #        8         28         28         8         28         27 
-  
   print("Add CpG present in ALL individuals")
   uniteCovALL= methylKit::unite(normFil.myobj, mc.cores=8)
   uniteCovALL=as(uniteCovALL,"methylBase")
@@ -85,7 +76,7 @@ if (rerun == TRUE){
   uniteCovALL_G1 = reorganize(
     normFil.myobj,
     sample.ids=metadata$ID[metadata$ID %in% fullMetadata$ID & metadata$Generat %in% "P"],
-    treatment=metadata$trtG1G2_NUM[metadata$ID %in% fullMetadata$ID & metadata$Generat %in% "P"])
+    treatment=metadata$sex_NUM[metadata$ID %in% fullMetadata$ID & metadata$Generat %in% "P"])
   
   uniteCovALL_G1 = methylKit::unite(uniteCovALL_G1, mc.cores=8) # try with 8 cores
   uniteCovALL_G1 = as(uniteCovALL_G1,"methylBase")
@@ -94,29 +85,20 @@ if (rerun == TRUE){
   uniteCovALL_G2 = reorganize(
     normFil.myobj,
     sample.ids=metadata$ID[metadata$ID %in% fullMetadata$ID & metadata$Generat %in% "O"],
-    treatment=metadata$trtG1G2_NUM[metadata$ID %in% fullMetadata$ID & metadata$Generat %in% "O"])
+    treatment=metadata$sex_NUM[metadata$ID %in% fullMetadata$ID & metadata$Generat %in% "O"])
   
   uniteCovALL_G2 = methylKit::unite(uniteCovALL_G2, mc.cores=8)# try with 8 cores
   uniteCovALL_G2 = as(uniteCovALL_G2,"methylBase")
   
-  ## Keep methylated CpG sites observed in at least 50% individual fish after filtering and normalising: 4 for parents, 14 for offsprings
-  ## PARENTS
-  uniteCovHALF_G1 = reorganize(
-    normFil.myobj,
-    sample.ids=metadata$ID[metadata$ID %in% fullMetadata$ID & metadata$Generat %in% "P"],
-    treatment=metadata$trtG1G2_NUM[metadata$ID %in% fullMetadata$ID & metadata$Generat %in% "P"])
-  
-  uniteCovHALF_G1 = methylKit::unite(uniteCovHALF_G1, min.per.group=4L, mc.cores=8)# try with 8 cores
-  uniteCovHALF_G1 = as(uniteCovHALF_G1,"methylBase")
-  
+  ## Keep methylated CpG sites observed in at least 50% individual fish per sex after filtering and normalising:
   ## OFFSPRING
-  uniteCovHALF_G2 = reorganize(
+  uniteCovHALFperSex_G2 = reorganize(
     normFil.myobj,
     sample.ids=metadata$ID[metadata$ID %in% fullMetadata$ID & metadata$Generat %in% "O"],
-    treatment=metadata$trtG1G2_NUM[metadata$ID %in% fullMetadata$ID & metadata$Generat %in% "O"])
+    treatment=metadata$sex_NUM[metadata$ID %in% fullMetadata$ID & metadata$Generat %in% "O"])
   
-  uniteCovHALF_G2 = methylKit::unite(uniteCovHALF_G2, min.per.group=14L, mc.cores=8)# try with 8 cores
-  uniteCovHALF_G2 = as(uniteCovHALF_G2,"methylBase")
+  uniteCovHALFperSex_G2 = methylKit::unite(uniteCovHALFperSex_G2, min.per.group=14L, mc.cores=8)# try with 8 cores
+  uniteCovHALFperSex_G2 = as(uniteCovHALFperSex_G2,"methylBase")
   
   ########################################################################################
   ## Remove reads from sex chromosome X ("Gy_chrXIX") and unmapped contigs ("Gy_chrUn") ##
@@ -166,55 +148,3 @@ if (rerun == TRUE){
   
   ## NB: move outcome to gitignore to use on different machines
 }
-
-##################### Previous tests with ALL numbers of fish 1 to 12:
-## we kept for downstream analyses all CpG sites present in at least 1 to 12 individuals per group, or in all individuals:
-# print("Unite and store in a list")
-# mylist_uniteCov=list()
-# for (i in 6:12L){ # done for 1 to 5, then 6 to 12
-#     uniteCov=unite(normFil.myobj, min.per.group=i, mc.cores=8)# try with 8 cores
-#     uniteCov=as(uniteCov,"methylBase")
-#     name=paste0("uniteCov_", as.character(i))
-#     mylist_uniteCov[[name]]=uniteCov
-# }
-
-## Add CpG present in ALL individuals
-# uniteCov=unite(normFil.myobj, mc.cores=8)
-# uniteCov=as(uniteCov,"methylBase")
-# mylist_uniteCov[["uniteCov_ALL"]]=uniteCov
-
-# CpGALL=length(mylist_uniteCov$uniteCov_ALL$coverage1) # 47238
-
-# Idea: plot number of retained CpG site by nbr of individuals sharing these CpG sites. Preparing file for that:
-# print("Make DF")
-# CpGDF1_5=data.frame(lapply(mylist_uniteCov, function(x) length(x$coverage1)))
-# CpGDF1_5=t(CpGDF1_5)
-# CpGDF1_5=data.frame(NbrIndMin=as.numeric(gsub("uniteCov_", "", row.names(CpGDF1_5))),
-#                     NbrCpG=CpGDF1_5[,1])
-# 
-# CpGDF6_12=data.frame(lapply(mylist_uniteCov, function(x) length(x$coverage1)))
-# CpGDF6_12=t(CpGDF6_12)
-# CpGDF6_12=data.frame(NbrIndMin=as.numeric(gsub("uniteCov_", "", row.names(CpGDF6_12))),
-#                      NbrCpG=CpGDF6_12[,1])
-# 
-# CpGDF=rbind(CpGDF1_5, CpGDF6_12)
-
-# print("Save object for plotting")
-# save(CpGDF, file="/data/SBCS-EizaguirreLab/Alice/StickParaBroOff/Data/05MethylKit/plots/CpGDF.RData")
-
-# print("Save plot")
-# plotCpGshared <- ggplot(CpGDF, aes(x=NbrIndMin, y=NbrCpG))+
-#     geom_smooth(se = F, col = "red")+
-#     geom_smooth(method = "lm", se = F, col = "black") +
-#     geom_point() +
-#     scale_x_continuous("Number of individual fish per treatment group sharing the same methylated CpG sites",
-#                        labels = as.character(CpGDF$NbrIndMin), breaks = CpGDF$NbrIndMin)+
-#     scale_y_continuous("Number of shared methylated CpG sites") +
-#     theme_bw() +
-#     geom_hline(yintercept=CpGALL)
-# 
-# plotCpGshared
-# 
-# pdf(file="/data/SBCS-EizaguirreLab/Alice/StickParaBroOff/Data/05MethylKit/plots/plotCpGshared.pdf")
-# plotCpGshared
-# dev.off()
