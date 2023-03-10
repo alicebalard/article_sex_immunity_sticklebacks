@@ -1,0 +1,90 @@
+## Differential methylation analyses
+## A. Balard
+## March 2023
+
+## Each script sources the previous script of the pipeline if needed
+source("R04_GlobalMethylation.R")
+
+#######################################
+### Differential Methylation Sites ####
+#######################################
+
+####################################################################
+## Calculate DMS between sexes, in each treatment, per brother pair:
+getDMSsexperBP <- function(BP, uniteCov=uniteCovHALFperSex_G2_woSexAndUnknowChr,
+                           metadata = fullMetadata_OFFS){
+
+    ## Update male/female codes 
+    ## Males will be coded as 0, females as 1    
+    metadata$sex_NUM <- 0
+    metadata_OFFS$sex_NUM[metadata_OFFS$Sex %in% "F"] = 1
+
+    ## remove individuals in treatment/BP where only one sex is present
+    tab = table(metadata$Sex, metadata$brotherPairID, metadata$trtG1G2)  %>% data.frame %>% dplyr::filter(Freq ==0)
+
+    metadata$gp = paste(metadata$brotherPairID, metadata$trtG1G2)
+    tab$gp = paste(tab$Var2, tab$Var3)
+
+    metadata = metadata[!metadata$gp %in% tab$gp,]
+
+    #################################################################
+    ## Calculate DMS between sexes, in each treatment, per brother pair:
+                                        #getDMSsexperBP <- function(BP, uniteCov){
+
+    ## Unite object for one treatment:
+    metadataBP_CC = metadata[metadata$brotherPairID %in% BP &
+                             metadata$trtG1G2 %in% c("NE_control"), ]
+    metadataBP_CT = metadata[metadata$brotherPairID %in% BP &
+                             metadata$trtG1G2 %in% c("NE_exposed"), ]
+    metadataBP_TC = metadata[metadata$brotherPairID %in% BP &
+                             metadata$trtG1G2 %in% c("E_control"), ]
+    metadataBP_TT = metadata[metadata$brotherPairID %in% BP &
+                             metadata$trtG1G2 %in% c("E_exposed"), ]
+    
+    ## Make 4 separate uniteCov:
+    myuniteCovBP_CC = methylKit::reorganize(methylObj = uniteCov,
+                                            treatment = metadataBP_CC$sex_NUM,
+                                            sample.ids = metadataBP_CC$ID)
+    myuniteCovBP_CT = methylKit::reorganize(methylObj = uniteCov,
+                                            treatment = metadataBP_CT$sex_NUM,
+                                            sample.ids = metadataBP_CT$ID)
+    myuniteCovBP_TC = methylKit::reorganize(methylObj = uniteCov,
+                                            treatment = metadataBP_TC$sex_NUM,
+                                            sample.ids = metadataBP_TC$ID)
+    myuniteCovBP_TT = methylKit::reorganize(methylObj = uniteCov,
+                                            treatment = metadataBP_TT$sex_NUM,
+                                            sample.ids = metadataBP_TT$ID)
+
+    ## remove bases where NO fish in this BP has a coverage
+    myuniteCovBP_CC = methylKit::select(myuniteCovBP_CC, which(!is.na(rowSums(percMethylation(myuniteCovBP_CC)))))
+    myuniteCovBP_CT = methylKit::select(myuniteCovBP_CT, which(!is.na(rowSums(percMethylation(myuniteCovBP_CT)))))
+    myuniteCovBP_TC = methylKit::select(myuniteCovBP_TC, which(!is.na(rowSums(percMethylation(myuniteCovBP_TC)))))
+    myuniteCovBP_TT = methylKit::select(myuniteCovBP_TT, which(!is.na(rowSums(percMethylation(myuniteCovBP_TT)))))
+
+    ## Calculate differential methylation:
+    ## We select the bases that have q-value<0.01 and percent methylation difference larger than 15%, sex as covariate
+    DMS_15pc_BP_CC = getDiffMethSex(myuniteCov = myuniteCovBP_CC, myMetadata = metadataBP_CC, mccores = 1, mydif = 15)
+    DMS_15pc_BP_CT = getDiffMeth(myuniteCov = myuniteCovBP_CT, myMetadata = metadataBP_CT, mccores = 10, mydif = 15)
+    DMS_15pc_BP_TC = getDiffMeth(myuniteCov = myuniteCovBP_TC, myMetadata = metadataBP_TC, mccores = 10, mydif = 15)
+    DMS_15pc_BP_TT = getDiffMeth(myuniteCov = myuniteCovBP_TT, myMetadata = metadataBP_TT, mccores = 10, mydif = 15)
+    
+    return(list(DMSlist = list(DMS_15pc_BP_CC = DMS_15pc_BP_CC, DMS_15pc_BP_CT = DMS_15pc_BP_CT, DMS_15pc_BP_TC = DMS_15pc_BP_TC, DMS_15pc_BP_TT = DMS_15pc_BP_TT)))
+}
+
+run = TRUE
+
+## Calculate DMS by brother pairs:
+if (run == TRUE){
+
+    ## We will apply the following function to all BP:
+    vecBP <- unique(fullMetadata_OFFS$brotherPairID)
+    
+    ## Loop over all BP
+    DMlist <- list() # empty plot list
+    for (i in 1:length(vecBP)){
+        DMlist[[i]] <- getDMSsexperBP(BP = vecBP[[i]])
+    } 
+    names(DMlist) <- vecBP
+    
+    saveRDS(DMlist, "../../dataOut/DiffMeth/DMperBP_SexwithinTrt_Mar2022.RDS")
+}

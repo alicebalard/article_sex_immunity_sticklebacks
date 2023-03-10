@@ -1,17 +1,15 @@
 ## MethylKit object preparation
 ## A. Balard
-## 25th of August 2021 (updated Dec22)
+## 3rd of March 2023
 
 # Each script sources the previous script of the pipeline if needed
 # NB: comment when on Apocrita
 source("R02_prepBSBOLTForMethylkit_runInCLUSTER.R")
 
 ## Load unitecov objects
-# base::load("../../gitignore/bigdata/05MethylKit/uniteCovObjects/uniteCovALL_woSexAndUnknowChr_20dec2022.RData") 
-# base::load("../../gitignore/bigdata/05MethylKit/uniteCovObjects/uniteCovALL_G1_woSexAndUnknowChr_20dec2022.RData") 
-# base::load("../../gitignore/bigdata/05MethylKit/uniteCovObjects/uniteCovALL_G2_woSexAndUnknowChr_20dec2022.RData") 
-# base::load("../../gitignore/bigdata/05MethylKit/uniteCovObjects/uniteCovHALF_G1_woSexAndUnknowChr_OVERLAPwG2_20dec2022.RData") 
-# base::load("../../gitignore/bigdata/05MethylKit/uniteCovObjects/uniteCovHALF_G2_woSexAndUnknowChr_OVERLAPwG1_20dec2022.RData")
+base::load("../../gitignore/uniteCovALL_woSexAndUnknowChr_March2023.RData")
+base::load("../../gitignore/uniteCovALL_G2_woSexAndUnknowChr_March2023.RData")
+base::load("../../gitignore/uniteCovHALFperSex_G2_woSexAndUnknowChr_March2023.RData")
 
 ##################
 ## To recalculate:
@@ -25,10 +23,12 @@ if (rerun == TRUE){
                     full.names = T)
   
   ## Add metadata on sex (the grouping factor)
-  metadata <- readxl::read_xlsx("../../dataIn/raw data Joshka Kostas/Kostas_G2_info.xlsx")
+    metadata <- readxl::read_xlsx("../../dataIn/raw data Joshka Kostas/Kostas_G2_info.xlsx")
     
-  metadata$sex_NUM <- as.numeric(as.factor(metadata$Sex))
-  
+    ## Males will be coded as 0, females as 1    
+    metadata$sex_NUM <- 0
+    metadata$sex_NUM[metadata$Sex %in% "F"] = 1
+    
   ### Make methylkit object
   myobj=methylKit::methRead(as.list(temp),
                             mincov=10,
@@ -71,16 +71,7 @@ if (rerun == TRUE){
   print("Add CpG present in ALL individuals")
   uniteCovALL= methylKit::unite(normFil.myobj, mc.cores=8)
   uniteCovALL=as(uniteCovALL,"methylBase")
-  
-  ## In all PARENTS:
-  uniteCovALL_G1 = reorganize(
-    normFil.myobj,
-    sample.ids=metadata$ID[metadata$ID %in% fullMetadata$ID & metadata$Generat %in% "P"],
-    treatment=metadata$sex_NUM[metadata$ID %in% fullMetadata$ID & metadata$Generat %in% "P"])
-  
-  uniteCovALL_G1 = methylKit::unite(uniteCovALL_G1, mc.cores=8) # try with 8 cores
-  uniteCovALL_G1 = as(uniteCovALL_G1,"methylBase")
-  
+    
   ## In all OFFSPRING:
   uniteCovALL_G2 = reorganize(
     normFil.myobj,
@@ -90,14 +81,16 @@ if (rerun == TRUE){
   uniteCovALL_G2 = methylKit::unite(uniteCovALL_G2, mc.cores=8)# try with 8 cores
   uniteCovALL_G2 = as(uniteCovALL_G2,"methylBase")
   
-  ## Keep methylated CpG sites observed in at least 50% individual fish per sex after filtering and normalising:
-  ## OFFSPRING
+## Keep methylated CpG sites observed in at least 50% individual fish per sex (N=27) after filtering and normalising:
+table(fullMetadata[fullMetadata$Generat %in% "O","Sex"])
+
+## OFFSPRING
   uniteCovHALFperSex_G2 = reorganize(
     normFil.myobj,
     sample.ids=metadata$ID[metadata$ID %in% fullMetadata$ID & metadata$Generat %in% "O"],
     treatment=metadata$sex_NUM[metadata$ID %in% fullMetadata$ID & metadata$Generat %in% "O"])
   
-  uniteCovHALFperSex_G2 = methylKit::unite(uniteCovHALFperSex_G2, min.per.group=14L, mc.cores=8)# try with 8 cores
+  uniteCovHALFperSex_G2 = methylKit::unite(uniteCovHALFperSex_G2, min.per.group=27L, mc.cores=8)# try with 8 cores
   uniteCovHALFperSex_G2 = as(uniteCovHALFperSex_G2,"methylBase")
   
   ########################################################################################
@@ -108,43 +101,22 @@ if (rerun == TRUE){
   
   print("Keep CpG apart from sex chromosome XIX and unmapped (comprise Y chr)")
   uniteCovALL_woSexAndUnknowChr=uniteCovALL[!uniteCovALL$chr %in% c("Gy_chrXIX", "Gy_chrUn"),]
-  uniteCovALL_G1_woSexAndUnknowChr=uniteCovALL_G1[!uniteCovALL_G1$chr %in% c("Gy_chrXIX", "Gy_chrUn"),]
   uniteCovALL_G2_woSexAndUnknowChr=uniteCovALL_G2[!uniteCovALL_G2$chr %in% c("Gy_chrXIX", "Gy_chrUn"),]
-  
-  uniteCovHALF_G1_woSexAndUnknowChr=uniteCovHALF_G1[!uniteCovHALF_G1$chr %in% c("Gy_chrXIX", "Gy_chrUn"),]
-  uniteCovHALF_G2_woSexAndUnknowChr=uniteCovHALF_G2[!uniteCovHALF_G2$chr %in% c("Gy_chrXIX", "Gy_chrUn"),]
-  
-  ## for positions covered in half fish groups, consider only methylKit object (uniteCov) with OVERLAPPING positions in Parents G1 and Offspring G2
-  overlappingCpG_G1G2df <- findOverlaps(as(uniteCovHALF_G1_woSexAndUnknowChr,"GRanges"), 
-                                        as(uniteCovHALF_G2_woSexAndUnknowChr,"GRanges"))
-  overlappingCpG_G1G2df <- data.frame(overlappingCpG_G1G2df)
-  
-  uniteCovHALF_G1_woSexAndUnknowChrOVERLAP <- uniteCovHALF_G1_woSexAndUnknowChr[overlappingCpG_G1G2df$queryHits,]
-  uniteCovHALF_G2_woSexAndUnknowChrOVERLAP <- uniteCovHALF_G2_woSexAndUnknowChr[overlappingCpG_G1G2df$subjectHits,]
-  
+  uniteCovHALFperSex_G2_woSexAndUnknowChr=uniteCovHALFperSex_G2[!uniteCovHALFperSex_G2$chr %in% c("Gy_chrXIX", "Gy_chrUn"),]
+    
   print("nbr CpG shared by all 127 samples:")
   length(uniteCovALL_woSexAndUnknowChr$chr)
-  print("nbr CpG shared by all parents:")
-  length(uniteCovALL_G1_woSexAndUnknowChr$chr)
-  print("nbr CpG shared by all offsprings:")
+    print("nbr CpG shared by all offsprings:")
   length(uniteCovALL_G2_woSexAndUnknowChr$chr)
-  print("nbr CpG shared by 50% (4) of parents per trt group (overlapping with G2):")
-  length(uniteCovHALF_G1_woSexAndUnknowChrOVERLAP$chr)
-  print("nbr CpG shared by 50% (14) of offsprings per trt group (overlapping with G1):")
-  length(uniteCovHALF_G2_woSexAndUnknowChrOVERLAP$chr)
+  print("nbr CpG shared by 50% (>27) of offsprings per sex:")
+  length(uniteCovHALFperSex_G2_woSexAndUnknowChr$chr)
   
   ######################################################################################################
   ## Save outcomes
   save(uniteCovALL_woSexAndUnknowChr,
-       file = "/data/SBCS-EizaguirreLab/Alice/StickParaBroOff/Data/05MethylKit/output/uniteCovALL_woSexAndUnknowChr_20dec2022.RData")
-  save(uniteCovALL_G1_woSexAndUnknowChr,
-       file = "/data/SBCS-EizaguirreLab/Alice/StickParaBroOff/Data/05MethylKit/output/uniteCovALL_G1_woSexAndUnknowChr_20dec2022.RData")
+       file = "/data/SBCS-EizaguirreLab/Alice/SexImmunity/article_sex_immunity_sticklebacks/gitignore/uniteCovALL_woSexAndUnknowChr_March2023.RData")
   save(uniteCovALL_G2_woSexAndUnknowChr,
-       file = "/data/SBCS-EizaguirreLab/Alice/StickParaBroOff/Data/05MethylKit/output/uniteCovALL_G2_woSexAndUnknowChr_20dec2022.RData")
-  save(uniteCovHALF_G1_woSexAndUnknowChrOVERLAP,
-       file = "/data/SBCS-EizaguirreLab/Alice/StickParaBroOff/Data/05MethylKit/output/uniteCovHALF_G1_woSexAndUnknowChr_OVERLAPwG2_20dec2022.RData")
-  save(uniteCovHALF_G2_woSexAndUnknowChrOVERLAP,
-       file = "/data/SBCS-EizaguirreLab/Alice/StickParaBroOff/Data/05MethylKit/output/uniteCovHALF_G2_woSexAndUnknowChr_OVERLAPwG1_20dec2022.RData")
-  
-  ## NB: move outcome to gitignore to use on different machines
+       file = "/data/SBCS-EizaguirreLab/Alice/SexImmunity/article_sex_immunity_sticklebacks/gitignore/uniteCovALL_G2_woSexAndUnknowChr_March2023.RData")
+  save(uniteCovHALFperSex_G2_woSexAndUnknowChr,
+       file = "/data/SBCS-EizaguirreLab/Alice/SexImmunity/article_sex_immunity_sticklebacks/gitignore/uniteCovHALFperSex_G2_woSexAndUnknowChr_March2023.RData")
 }

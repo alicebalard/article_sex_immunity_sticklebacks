@@ -1,9 +1,7 @@
 ## load all libraries needed for the project
 
 list.of.packages <- c(
-  "AnnotationDbi", # gene annotation from online databases
   "ape", #for reag.gff
-  "biomaRt", # to retrieve genes descriptions
   "cAIC4",
   "ComplexUpset", # for prettier upset plots
   "cowplot",
@@ -14,7 +12,6 @@ list.of.packages <- c(
   "factoextra", # color PCA plots
   "FactoMineR", # for PCA
   "forcats", # keeps characters in previous order axis ggplot (for bubble plot)
-  "genomation", ## for annotation
   "ggeffects", # to plot random effects predictions
   "ggplot2",
   "ggpubr", ## to merge ggplot2 plots
@@ -22,7 +19,6 @@ list.of.packages <- c(
   "goeveg", # find the best number of dimensions for NMDS
   "ggsignif", ## for significance bars on ggplot
   "ggVennDiagram",## Venn diagram in ggplot
-  "goEnrichment",
   "grid",
   "gridExtra",
   "lme4", ## for mixed models
@@ -32,12 +28,10 @@ list.of.packages <- c(
   "MuMIn", # participation of variables to the variance
   "missMDA",# PCA for incomplete data
   "nlme", ## for mixed models
-  "org.Hs.eg.db", # gene annotation from online databases
-  "pairwiseAdonis",
   "pheatmap", # for heatmaps
   "plyr", # for join (keep row order",
   "png",
-  "purr",
+  "purrr",
   "qualpalr",# extra palettes
   "RColorBrewer", # for colors in Venn diagrams
   "rentrez", # to extract info from NCBI Entrez
@@ -55,30 +49,48 @@ list.of.packages <- c(
 ###################################################################
 ## install from CRAN and require all libraries from CRAN and github
 ipak <- function(pkg){
-  new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
-#  if (length(new.pkg))
+#  new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+# if (length(new.pkg))
 #    install.packages(new.pkg, dependencies = TRUE,repos = "http://cran.us.r-project.org")
   sapply(pkg, require, character.only = TRUE)
 }
+
 ipak(list.of.packages)
 
 ##########################################
 ## install packages from github if not yet
-#install_github("ropensci/rentrez")
-#install_github("asishallab/goEnrichment")
+
+#if (length("rentrez"[!("rentrez" %in% installed.packages()[, "Package"])])){
+#    install_github("ropensci/rentrez")
+#}
+
+#if (length("goEnrichment"[!("goEnrichment" %in% installed.packages()[, "Package"])])){
+#    install_github("asishallab/goEnrichment")   
+#}
+
+#if (length("/pairwiseAdonis"[!("pairwiseAdonis" %in% installed.packages()[, "Package"])])){
 #install_github("pmartinezarbizu/pairwiseAdonis/pairwiseAdonis")
+#}
+
+#if (length("ggVennDiagram"[!("ggVennDiagram" %in% installed.packages()[, "Package"])])){
 #install_github("gaospecial/ggVennDiagram")
+#}
+
 
 #####################################################
 ## install from biocmanager and require all libraries
 ## Biocmanager packages 
-list.bioc <- c("Category", # for hypergeometric GO test
-               "WGCNA", # for networks
+list.bioc <- c("AnnotationDbi", # gene annotation from online databases
+               "biomaRt", # to retrieve genes descriptions
+               "Category", # for hypergeometric GO test
+               "genomation", ## for annotation
                "GenomicFeatures",## for annotation
+               "goEnrichment",
                "GOstats", # for GO analysis
                "GSEABase",  # for GO term GeneSetCollection
-               "methylKit"
-) 
+               "methylKit",
+               "org.Hs.eg.db" # gene annotation from online databases
+               ) 
 ipak2 <- function(pkg){
   new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
 #  if (length(new.pkg))

@@ -88,6 +88,7 @@ plot(ggpredict(mod, terms = c("outcome", "Sex", "PAT")), add.data=T)
 ##################
 print("Number of CpGs present in all G2 samples:")
 print(nrow(uniteCovALL_G2_woSexAndUnknowChr))
+           
 
 # Calculate number of methylated sites, mean coverage, and residuals of methylated sites by covered sites (to account for coverage bias)
 mycalcRMS <- function(myUniteCov, myMetaData){
